@@ -1,0 +1,140 @@
+<div class="order-creation-container">
+  <div class="header">
+    <h1>📝 Create New Order</h1>
+  </div>
+
+  <form [formGroup]="orderForm" (ngSubmit)="onSubmit()">
+    <!-- Customer Information -->
+    <div class="section">
+      <h2>👤 Customer Information</h2>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="customerId">Customer ID</label>
+          <input id="customerId" type="text" formControlName="customerId" readonly />
+        </div>
+
+        <div class="form-field">
+          <label for="customerName">Name *</label>
+          <input id="customerName" type="text" formControlName="customerName" placeholder="Enter customer name" />
+          @if (orderForm.get('customerName')?.invalid && orderForm.get('customerName')?.touched) {
+          <span class="error">Name is required</span>
+          }
+        </div>
+
+        <div class="form-field">
+          <label for="customerEmail">Email *</label>
+          <input id="customerEmail" type="email" formControlName="customerEmail" placeholder="customer@example.com" />
+          @if (orderForm.get('customerEmail')?.invalid && orderForm.get('customerEmail')?.touched) {
+          <span class="error">Valid email is required</span>
+          }
+        </div>
+
+        <div class="form-field">
+          <label for="customerPhone">Phone *</label>
+          <input id="customerPhone" type="tel" formControlName="customerPhone" placeholder="+1-555-0000" />
+          @if (orderForm.get('customerPhone')?.invalid && orderForm.get('customerPhone')?.touched) {
+          <span class="error">Phone is required</span>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Items -->
+    <div class="section">
+      <div class="section-header">
+        <h2>🛒 Order Items</h2>
+        <button type="button" class="add-item-btn" (click)="addItem()">
+          + Add Item
+        </button>
+      </div>
+
+      <div formArrayName="items" class="items-container">
+        @for (item of items.controls; track $index) {
+        <div [formGroupName]="$index" class="item-card">
+          <div class="item-header">
+            <h3>Item #{{ $index + 1 }}</h3>
+            @if (items.length > 1) {
+            <button type="button" class="remove-btn" (click)="removeItem($index)">
+              🗑️ Remove
+            </button>
+            }
+          </div>
+
+          <div class="item-grid">
+            <div class="form-field">
+              <label [for]="'productId-' + $index">Product ID</label>
+              <input [id]="'productId-' + $index" type="text" formControlName="productId" readonly />
+            </div>
+
+            <div class="form-field">
+              <label [for]="'productName-' + $index">Product Name *</label>
+              <input [id]="'productName-' + $index" type="text" formControlName="productName"
+                placeholder="Enter product name" />
+              @if (item.get('productName')?.invalid && item.get('productName')?.touched) {
+              <span class="error">Product name is required</span>
+              }
+            </div>
+
+            <div class="form-field">
+              <label [for]="'quantity-' + $index">Quantity *</label>
+              <input [id]="'quantity-' + $index" type="number" formControlName="quantity" min="1" placeholder="1" />
+              @if (item.get('quantity')?.invalid && item.get('quantity')?.touched) {
+              <span class="error">Min quantity: 1</span>
+              }
+            </div>
+
+            <div class="form-field">
+              <label [for]="'unitPrice-' + $index">Unit Price *</label>
+              <input [id]="'unitPrice-' + $index" type="number" formControlName="unitPrice" min="0" step="0.01"
+                placeholder="0.00" />
+              @if (item.get('unitPrice')?.invalid && item.get('unitPrice')?.touched) {
+              <span class="error">Price must be >= 0</span>
+              }
+            </div>
+
+            <div class="item-total">
+              <span class="label">Subtotal:</span>
+              <span class="value">${{ getItemTotal($index) | number:'1.2-2' }}</span>
+            </div>
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+
+    <!-- Order Summary -->
+    <div class="section summary">
+      <h2>💰 Order Summary</h2>
+      <div class="summary-content">
+        <div class="summary-row">
+          <span>Total Items:</span>
+          <span>{{ items.length }}</span>
+        </div>
+        <div class="summary-row total">
+          <span>Grand Total:</span>
+          <span>${{ getGrandTotal() | number:'1.2-2' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button type="button" class="cancel-btn" (click)="onCancel()">
+        Cancel
+      </button>
+      <button type="submit" class="submit-btn" [disabled]="orderForm.invalid || (facade.isLoadingAction$ | async)">
+        Create Order
+      </button>
+    </div>
+
+    @if (facade.isLoadingAction$ | async) {
+    <div>Creando pedido...</div>
+    }
+    @if (facade.error$ | async; as error) {
+    <div class="error">
+      Error: {{ error.message }}
+    </div>
+    }
+  </form>
+</div>

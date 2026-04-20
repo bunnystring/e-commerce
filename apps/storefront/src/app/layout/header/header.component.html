@@ -1,0 +1,15 @@
+<header class="app-header">
+  <div class="header-content">
+    <div class="logo">
+      🛒 <span>{{ title || "Storefront" }}</span>
+    </div>
+    <nav class="nav-links">
+      <a routerLink="/orders" routerLinkActive="active">Pedidos</a>
+      <a routerLink="/orders/create" routerLinkActive="active">Nuevo Pedido</a>
+    </nav>
+    <div class="user-box">
+      <!-- Puedes colocar avatar, nombre usuario o logout aquí -->
+      <span class="user-avatar">👤</span>
+    </div>
+  </div>
+</header>

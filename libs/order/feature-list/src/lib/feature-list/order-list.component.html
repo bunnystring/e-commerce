@@ -1,0 +1,184 @@
+<div class="order-list-container">
+  <div class="header">
+    <h1>📦 Order Management</h1>
+    <button class="new-order-btn" type="button" (click)="newOrder()">
+      + Nuevo Pedido
+    </button>
+    <div class="stats">
+      <div class="stat-card">
+        <span class="stat-label">Total Orders</span>
+        <span class="stat-value">
+          {{ (filteredOrders$ | async)?.length ?? 0 }}
+        </span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Total Revenue</span>
+        <span class="stat-value">
+          ${{ totalRevenue$ | async | number:'1.2-2' }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div class="search-box">
+      <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()"
+        placeholder="🔍 Search by order number, customer name or email..." aria-label="Buscar pedidos" />
+    </div>
+
+    <div class="customer-filter">
+      <input type="text" [(ngModel)]="customerId" (ngModelChange)="onCustomerIdChange()"
+        placeholder="🔎 Filtrar por Customer ID" aria-label="Filtrar por Cliente" />
+    </div>
+    <div class="date-range-filter">
+      <label>
+        Desde:
+        <input type="date" [(ngModel)]="fromDate" (ngModelChange)="onDateRangeChange()" />
+      </label>
+      <label>
+        Hasta:
+        <input type="date" [(ngModel)]="toDate" (ngModelChange)="onDateRangeChange()" />
+      </label>
+    </div>
+    <div class="min-total-filter">
+      <input type="number" [(ngModel)]="minTotal" (ngModelChange)="onMinTotalChange()" min="0"
+        placeholder="💸 Monto mínimo" aria-label="Monto mínimo" />
+    </div>
+
+
+    <div class="status-filters">
+      <label class="sr-only" for="status-filter">Filter by status:</label>
+      <div class="status-chips" id="status-filter">
+        @for (status of allStatuses; track status) {
+        <button class="chip" [class.active]="selectedStatuses.includes(status)"
+          [attr.aria-pressed]="selectedStatuses.includes(status)" type="button" (click)="toggleStatus(status)">
+          {{ status }}
+        </button>
+        }
+      </div>
+      <button class="clear-btn" type="button" (click)="clearFilters()">
+        Clear Filters
+      </button>
+    </div>
+  </div>
+
+  @if (facade.error$ | async; as error) {
+  <div class="error-message">
+    {{ error?.message || 'Ocurrió un error al cargar los pedidos.' }}
+  </div>
+  }
+
+  @if (loading$ | async) {
+  <div class="loading">
+    <div class="spinner"></div>
+    <p>Loading orders...</p>
+  </div>
+  }
+
+  @if (orders$ | async; as orders) {
+  @if (selectedOrderIds.size > 0) {
+  <div class="bulk-actions">
+    <span>Acción masiva: Cambiar estado de {{ selectedOrderIds.size }} pedidos a…</span>
+    <select #bulkStatus>
+      @for (s of allStatuses; track s) {
+      <option [value]="s">{{ s }}</option>
+      }
+    </select>
+    <button type="button" (click)="bulkChangeStatus(bulkStatus.value)">
+      Aplicar
+    </button>
+  </div>
+  }
+
+  @if (selectedOrderIds.size > 0) {
+  <div class="bulk-actions-bar">
+    <span class="bulk-count">
+      <input type="checkbox" checked disabled style="accent-color: #1a70fa; margin-right:7px;" />
+      {{ selectedOrderIds.size }} seleccionados
+    </span>
+    <span class="bulk-label">Cambiar estado a:</span>
+    <select #bulkStatus class="bulk-select">
+      @for (s of allStatuses; track s) {
+      <option [value]="s">{{ s }}</option>
+      }
+    </select>
+    <button class="bulk-btn" type="button" (click)="bulkChangeStatus(bulkStatus.value)">
+      <span class="material-symbols-outlined" style="vertical-align: middle;"></span>
+      Aplicar a seleccionados
+    </button>
+  </div>
+  }
+
+  <div class="orders-grid">
+    @for (order of orders; track order.id) {
+    <div class="order-card" role="region" aria-label="Order Card" tabindex="0">
+      <div class="order-header">
+        <!-- Checkbox a la izquierda del número de orden -->
+        <span class="select-checkbox">
+          <input type="checkbox" [checked]="selectedOrderIds.has(order.id)"
+            (change)="toggleOrderSelection(order.id, $event.target.checked)"
+            aria-label="Seleccionar pedido para acción masiva"
+            style="accent-color: #1a70fa; width:17px; height:17px; margin-right:7px;" />
+        </span>
+        <span class="order-number">{{ order.orderNumber }}</span>
+        <span class="badge" [ngClass]="getStatusClass(order.status)">
+          {{ order.status | orderStatus: 'short' }}
+        </span>
+      </div>
+
+      <div class="customer-info">
+        <h3>{{ order.customer.name }}</h3>
+        <p>{{ order.customer.email }}</p>
+        <p>{{ order.customer.phone }}</p>
+      </div>
+
+      <div class="order-items">
+        <h4>Items ({{ order.items.length }})</h4>
+        <ul>
+          @for (item of order.items; track item.id) {
+          <li>
+            {{ item.productName }} x{{ item.quantity }} – ${{ item.subtotal | number:'1.2-2' }}
+          </li>
+          }
+        </ul>
+      </div>
+
+      <div class="order-footer">
+        <span class="total">Total: ${{ order.total | number:'1.2-2' }}</span>
+        <span class="date">{{ order.createdAt | date:'short' }}</span>
+      </div>
+
+      <!-- Botón cambiar estado -->
+      <div class="order-actions">
+          <label class="sr-only" [attr.for]="'order-status-' + order.id">Cambiar estado</label>
+        <select [id]="'order-status-' + order.id" [value]="order.status" (change)="onChangeStatus(order.id, $event)">
+          @for (s of allStatuses; track s) {
+          <option [value]="s" [disabled]="s === order.status">{{ s }}</option>
+          }
+        </select>
+        @if (facade.isLoadingAction$ | async) {
+        <span class="small-loader"></span>
+        }
+      </div>
+    </div>
+    }
+
+    @if (orders.length === 0) {
+    <div class="empty-state">
+      <p>😕 No orders found</p>
+    </div>
+    }
+  </div>
+  }
+  @if (pagination$ | async; as pag) {
+  <div class="pagination">
+    <span>
+      Página {{ pag.page }} de {{ totalPages$ | async }} —
+      Total: {{ (filteredOrders$ | async)?.length ?? 0 }}
+    </span>
+    <button (click)="facade.changePage(pag.page - 1)" [disabled]="pag.page === 1">◀ Prev</button>
+    <button (click)="facade.changePage(pag.page + 1)" [disabled]="pag.page === (totalPages$ | async)">Next ▶</button>
+  </div>
+  }
+  <ng-template #noPagination></ng-template>
+</div>

@@ -14,7 +14,17 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
-    "paths": {}
+    "paths": {
+      "@e-commerce/order/data-access": ["libs/order/data-access/src/index.ts"],
+      "@e-commerce/order/feature-list": [
+        "libs/order/feature-list/src/index.ts"
+      ],
+      "@e-commerce/order/feature-creation": [
+        "libs/order/feature-creation/src/index.ts"
+      ],
+      "@e-commerce/order/ui-components": ["libs/order/ui-components/src/index.ts"],
+      "@e-commerce/order/ui-components/*": ["libs/order/ui-components/src/*"]
+    }
   },
   "exclude": ["node_modules", "tmp"]
 }

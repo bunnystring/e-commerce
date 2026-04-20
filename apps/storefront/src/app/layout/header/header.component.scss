@@ -1,0 +1,41 @@
+.app-header {
+  background: #1a70fa;
+  color: #fff;
+  padding: 1rem 2.2rem;
+  box-shadow: 0 2px 14px #1a70fa10;
+  .header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    .logo {
+      font-size: 1.5rem;
+      font-weight: bold;
+      letter-spacing: -1px;
+      span { margin-left: .5em; }
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.7rem;
+      a {
+        color: #fff;
+        text-decoration: none;
+        font-weight: 500;
+        &.active, &:hover {
+          text-decoration: underline;
+          color: #ffc530;
+        }
+      }
+    }
+    .user-box {
+      margin-left: 2em;
+      .user-avatar {
+        background: #fff;
+        color: #1a70fa;
+        border-radius: 999px;
+        padding: .24em .54em;
+        font-weight: 700;
+        font-size: 1.12em;
+      }
+    }
+  }
+}

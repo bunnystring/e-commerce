@@ -18,10 +18,10 @@ import { OrderStatus } from '../models/order-status.enum';
  */
 @Injectable({ providedIn: 'root' })
 export class OrdersFacade {
-  
   // store: Store - El store de NgRx para interactuar con el estado de los pedidos.
   private store = inject(Store);
 
+  // observables para seleccionar diferentes partes del estado de los pedidos utilizando los selectores definidos en OrdersSelectors.
   orders$ = this.store.select(OrdersSelectors.selectPagedFilteredOrders);
   filteredOrders$ = this.store.select(OrdersSelectors.selectFilteredOrders);
   ordersByStatus$ = this.store.select(OrdersSelectors.selectOrdersByStatus);
@@ -37,14 +37,13 @@ export class OrdersFacade {
   isLoadingAction$ = this.store.select(OrdersSelectors.selectIsLoadingAction);
   totalPages$ = this.store.select(OrdersSelectors.selectTotalPages);
 
-
   /**
    * Método para cargar los pedidos desde la API.
    * Despacha la acción loadOrders para iniciar el proceso de carga.
-   * El efecto correspondiente manejará la lógica de carga y actualización del estado.
+   * @param filters - Filtros opcionales que se aplicarán antes de cargar (útil para deep links o cargas pre-filtradas).
    */
-  loadOrders() {
-    this.store.dispatch(OrdersActions.loadOrders());
+  loadOrders(filters?: OrderFilters) {
+    this.store.dispatch(OrdersActions.loadOrders({ filters }));
   }
 
   /**

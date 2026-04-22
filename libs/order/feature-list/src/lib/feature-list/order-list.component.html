@@ -4,6 +4,17 @@
     <button class="new-order-btn" type="button" (click)="newOrder()">
       + Nuevo Pedido
     </button>
+    <div class="role-switcher">
+      <span class="role-label">Rol:</span>
+      <button type="button" class="role-btn" (click)="setRole('viewer')">Viewer</button>
+      <button type="button" class="role-btn" (click)="setRole('editor')">Editor</button>
+      <button type="button" class="role-btn" (click)="setRole('admin')">Admin</button>
+      <span class="current-perms">
+        @if (currentPermissions$ | async; as perms) {
+        [ {{ perms.size }} permisos activos ]
+        }
+      </span>
+    </div>
     <div class="stats">
       <div class="stat-card">
         <span class="stat-label">Total Orders</span>
@@ -19,10 +30,25 @@
       </div>
     </div>
   </div>
+  @if (ordersByStatus$ | async; as byStatus) {
+  <div class="status-breakdown">
+    @for (status of allStatuses; track status) {
+    @if (byStatus.get(status); as ordersOfStatus) {
+    @if (ordersOfStatus.length > 0) {
+    <span class="status-pill" [style.background]="status | orderStatus: 'color'"
+      [title]="status | orderStatus: 'label'">
+      {{ status | orderStatus: 'short' }}
+      <strong>{{ ordersOfStatus.length }}</strong>
+    </span>
+    }
+    }
+    }
+  </div>
+  }
 
   <div class="filters">
     <div class="search-box">
-      <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()"
+      <input type="text" [formControl]="searchControl"
         placeholder="🔍 Search by order number, customer name or email..." aria-label="Buscar pedidos" />
     </div>
 
@@ -50,9 +76,11 @@
       <label class="sr-only" for="status-filter">Filter by status:</label>
       <div class="status-chips" id="status-filter">
         @for (status of allStatuses; track status) {
-        <button class="chip" [class.active]="selectedStatuses.includes(status)"
-          [attr.aria-pressed]="selectedStatuses.includes(status)" type="button" (click)="toggleStatus(status)">
-          {{ status }}
+        <button class="chip" type="button" [class.active]="selectedStatuses.includes(status)"
+          [style.background]="selectedStatuses.includes(status) ? (status | orderStatus: 'color') : null"
+          [attr.aria-pressed]="selectedStatuses.includes(status)" [title]="status | orderStatus: 'label'"
+          (click)="toggleStatus(status)">
+          {{ status | orderStatus: 'short' }}
         </button>
         }
       </div>
@@ -77,20 +105,6 @@
 
   @if (orders$ | async; as orders) {
   @if (selectedOrderIds.size > 0) {
-  <div class="bulk-actions">
-    <span>Acción masiva: Cambiar estado de {{ selectedOrderIds.size }} pedidos a…</span>
-    <select #bulkStatus>
-      @for (s of allStatuses; track s) {
-      <option [value]="s">{{ s }}</option>
-      }
-    </select>
-    <button type="button" (click)="bulkChangeStatus(bulkStatus.value)">
-      Aplicar
-    </button>
-  </div>
-  }
-
-  @if (selectedOrderIds.size > 0) {
   <div class="bulk-actions-bar">
     <span class="bulk-count">
       <input type="checkbox" checked disabled style="accent-color: #1a70fa; margin-right:7px;" />
@@ -102,10 +116,12 @@
       <option [value]="s">{{ s }}</option>
       }
     </select>
-    <button class="bulk-btn" type="button" (click)="bulkChangeStatus(bulkStatus.value)">
-      <span class="material-symbols-outlined" style="vertical-align: middle;"></span>
-      Aplicar a seleccionados
-    </button>
+    <ng-container *appHasPermission="['orders:update', 'admin']">
+      <button class="bulk-btn" type="button" [appLoadingState]="(facade.isLoadingAction$ | async) ?? false"
+        originalText="Aplicar a seleccionados" loadingText="Aplicando..." (click)="bulkChangeStatus(bulkStatus.value)">
+        Aplicar a seleccionados
+      </button>
+    </ng-container>
   </div>
   }
 
@@ -114,14 +130,14 @@
     <div class="order-card" role="region" aria-label="Order Card" tabindex="0">
       <div class="order-header">
         <!-- Checkbox a la izquierda del número de orden -->
-        <span class="select-checkbox">
+        <span class="select-checkbox" *appHasPermission="['orders:update', 'admin']">
           <input type="checkbox" [checked]="selectedOrderIds.has(order.id)"
-            (change)="toggleOrderSelection(order.id, $event.target.checked)"
-            aria-label="Seleccionar pedido para acción masiva"
+            (change)="toggleOrderSelection(order.id, $event)" aria-label="Seleccionar pedido para acción masiva"
             style="accent-color: #1a70fa; width:17px; height:17px; margin-right:7px;" />
         </span>
         <span class="order-number">{{ order.orderNumber }}</span>
-        <span class="badge" [ngClass]="getStatusClass(order.status)">
+        <span class="badge" [style.background]="order.status | orderStatus: 'color'"
+          [title]="order.status | orderStatus: 'label'">
           {{ order.status | orderStatus: 'short' }}
         </span>
       </div>
@@ -150,12 +166,19 @@
 
       <!-- Botón cambiar estado -->
       <div class="order-actions">
-          <label class="sr-only" [attr.for]="'order-status-' + order.id">Cambiar estado</label>
-        <select [id]="'order-status-' + order.id" [value]="order.status" (change)="onChangeStatus(order.id, $event)">
+        <label class="sr-only" [attr.for]="'order-status-' + order.id">Cambiar estado</label>
+
+        <select *appHasPermission="['orders:update', 'admin']; else noUpdatePerm" [id]="'order-status-' + order.id"
+          [ngModel]="order.status" (ngModelChange)="onStatusChange(order.id, $event)">
           @for (s of allStatuses; track s) {
           <option [value]="s" [disabled]="s === order.status">{{ s }}</option>
           }
         </select>
+
+        <ng-template #noUpdatePerm>
+          <span class="no-perm-msg" title="Sin permiso para editar">🔒 Solo lectura</span>
+        </ng-template>
+
         @if (facade.isLoadingAction$ | async) {
         <span class="small-loader"></span>
         }

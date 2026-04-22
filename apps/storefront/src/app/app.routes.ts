@@ -1,5 +1,9 @@
 import { Route } from '@angular/router';
 
+/**
+ * appRoutes: Array de rutas principales de la aplicación.
+ * Define las rutas para la lista de pedidos y la creación de pedidos, utilizando carga perezosa (lazy loading) para optimizar el rendimiento.
+ */
 export const appRoutes: Route[] = [
   {
     path: '',

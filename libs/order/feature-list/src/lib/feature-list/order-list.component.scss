@@ -34,11 +34,13 @@
     align-items: center;
     gap: 0.6em;
   }
+
   .bulk-label {
     color: #31324f;
     font-weight: 500;
     margin-right: 0.4em;
   }
+
   .bulk-select {
     padding: .31em .9em;
     border-radius: .7em;
@@ -47,6 +49,7 @@
     margin-right: .7em;
     background: #eff4fa;
   }
+
   .bulk-btn {
     background: #1a70fa;
     color: #fff;
@@ -61,24 +64,35 @@
     align-items: center;
     box-shadow: 0 3px 14px #1a70fa17;
     transition: background 0.20s, color 0.17s;
+
     &:hover {
       background: #2555e4;
     }
+
     .material-symbols-outlined {
       font-size: 1.2em;
     }
   }
+
   @keyframes bulkfadein {
-    from { opacity: 0; transform: translateY(-20px);}
-    to { opacity: 1; transform: none;}
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 }
 
 .header {
-    display: flex;
+  display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: .9em;
+
   .select-checkbox {
     display: flex;
     align-items: center;
@@ -104,6 +118,7 @@
     cursor: pointer;
     transition: background 0.2s, box-shadow 0.16s;
     box-shadow: 0 3px 14px #1a70fa1a;
+
     &:hover {
       background: #2555e4;
       box-shadow: 0 5px 14px #1a70fa33;
@@ -113,6 +128,7 @@
   .stats {
     display: flex;
     gap: 2rem;
+
     .stat-card {
       background: #fff;
       border-radius: 1rem;
@@ -121,7 +137,12 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      .stat-label { font-size: .97rem; color: #666; }
+
+      .stat-label {
+        font-size: .97rem;
+        color: #666;
+      }
+
       .stat-value {
         font-weight: 700;
         font-size: 1.5rem;
@@ -170,6 +191,7 @@
       flex-wrap: wrap;
       gap: .39rem;
       margin-right: .6rem;
+
       .chip {
         border: none;
         outline: none;
@@ -181,21 +203,12 @@
         color: #333;
         transition: background 0.18s, color 0.18s, box-shadow 0.18s;
         box-shadow: 0 1px 2px #0001;
-        &.active, &[aria-pressed="true"] {
-          background: #1a70fa;
+
+        &.active,
+        &[aria-pressed="true"] {
           color: #fff;
         }
       }
-      // Status colors (usados por getStatusClass)
-      .status-draft { background: #bbb !important; color: #fff !important;}
-      .status-pending { background: orange !important; color: #fff !important;}
-      .status-confirmed { background: #007bff !important; color: #fff !important;}
-      .status-processing { background: #6f42c1 !important; color: #fff !important;}
-      .status-shipped { background: #17a2b8 !important; color: #fff !important;}
-      .status-delivered { background: #28a745 !important; color: #fff !important;}
-      .status-cancelled { background: #dc3545 !important; color: #fff !important;}
-      .status-refunded { background: #343a40 !important; color: #fff !important;}
-      .status-unknown { background: #888 !important; color: #fff !important;}
     }
 
     .clear-btn {
@@ -208,7 +221,11 @@
       cursor: pointer;
       transition: background 0.17s, color 0.17s;
       margin-left: .5rem;
-      &:hover {background: #1a70fa; color: #fff;}
+
+      &:hover {
+        background: #1a70fa;
+        color: #fff;
+      }
     }
   }
 }
@@ -222,6 +239,19 @@
   font-weight: 600;
   text-align: center;
   border: 1.2px solid #ffc5c0;
+  animation: errorFadeIn 0.3s ease-out;
+}
+
+@keyframes errorFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .loading {
@@ -230,6 +260,7 @@
   align-items: center;
   margin: 2rem 0 0 0;
   justify-content: center;
+
   .spinner {
     width: 26px;
     height: 26px;
@@ -238,7 +269,12 @@
     border-top: 3px solid #1a70fa;
     animation: spin .75s linear infinite;
   }
-  @keyframes spin { 100% { transform: rotate(360deg); } }
+
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 }
 
 .orders-grid {
@@ -268,54 +304,80 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: .6rem;
+
     .order-number {
       font-weight: 700;
       color: #1a70fa;
       letter-spacing: -1.5px;
     }
+
     .badge {
       padding: .22em .89em;
       border-radius: 1em;
       font-size: .93rem;
       text-transform: capitalize;
       font-weight: 600;
+      color: #fff;
       box-shadow: 0 1px 5px #0002;
-      &.status-draft { background: #bbb; color: #fff;}
-      &.status-pending { background: orange; color: #fff;}
-      &.status-confirmed { background: #007bff; color: #fff;}
-      &.status-processing { background: #6f42c1; color: #fff;}
-      &.status-shipped { background: #17a2b8; color: #fff;}
-      &.status-delivered { background: #28a745; color: #fff;}
-      &.status-cancelled { background: #dc3545; color: #fff;}
-      &.status-refunded { background: #343a40; color: #fff;}
-      &.status-unknown { background: #888; color: #fff;}
     }
   }
+
   .customer-info {
     margin-bottom: .3rem;
-    h3 { margin: .2em 0 .1em; font-size: 1.1em; font-weight: 600;}
-    p { margin: 0; font-size: .98em;}
+
+    h3 {
+      margin: .2em 0 .1em;
+      font-size: 1.1em;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 0;
+      font-size: .98em;
+    }
   }
+
   .order-items {
     margin: .9em 0 .6em;
-    h4 { margin: 0 0 .13em; font-size: 1.05em; font-weight: 500 }
+
+    h4 {
+      margin: 0 0 .13em;
+      font-size: 1.05em;
+      font-weight: 500
+    }
+
     ul {
       list-style: disc;
       padding-left: 1.3em;
       margin: 0 0 0 .2em;
-      li {font-size: .955em;}
+
+      li {
+        font-size: .955em;
+      }
     }
   }
+
   .order-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-top: .4em;
-    .total { font-size: 1.11em; font-weight: 700; color: #1a70fa;}
-    .date { font-size: .91em; color: #6e88bb;}
+
+    .total {
+      font-size: 1.11em;
+      font-weight: 700;
+      color: #1a70fa;
+    }
+
+    .date {
+      font-size: .91em;
+      color: #6e88bb;
+    }
   }
+
   .order-actions {
     margin-top: 1rem;
+
     .details-btn {
       background: #f5faff;
       color: #1a70fa;
@@ -326,6 +388,7 @@
       cursor: pointer;
       font-size: .98em;
       transition: background 0.17s, color 0.17s, border 0.18s;
+
       &:hover {
         background: #1a70fa;
         color: #fff;
@@ -347,6 +410,7 @@
   gap: 1.5rem;
   justify-content: center;
   margin: 2rem auto;
+
   button {
     background: #fff;
     border: 1px solid #1a70fa;
@@ -357,15 +421,18 @@
     font-size: 1.01em;
     font-weight: 500;
     transition: background .20s, color .18s;
+
     &:hover:not([disabled]) {
       background: #1a70fa;
       color: #fff;
     }
+
     &[disabled] {
       opacity: .36;
       cursor: not-allowed;
     }
   }
+
   span {
     display: flex;
     align-items: center;
@@ -385,12 +452,98 @@
   .orders-grid {
     grid-template-columns: 1fr;
   }
+
   .order-list-container {
     padding: 1rem 0.2rem;
   }
+
   .header {
     flex-direction: column;
     align-items: flex-start;
-    .new-order-btn { width: 100%; }
+
+    .new-order-btn {
+      width: 100%;
+    }
   }
+}
+
+.status-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1.5rem 0;
+  padding: 0.9rem 1.1rem;
+  background: #fff;
+  border-radius: 0.9rem;
+  box-shadow: 0 2px 8px #0001;
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+    padding: 0.3em 0.85em;
+    border-radius: 1em;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #fff;
+    box-shadow: 0 1px 4px #0001;
+    text-transform: capitalize;
+    cursor: default;
+
+    strong {
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 0.8em;
+      padding: 0.05em 0.55em;
+      font-weight: 700;
+      font-size: 0.92em;
+    }
+  }
+}
+
+.role-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  background: #fffbe6;
+  border: 1px dashed #f0ad4e;
+  border-radius: 0.6rem;
+  font-size: 0.88rem;
+
+  .role-label {
+    font-weight: 600;
+    color: #6b4e00;
+  }
+
+  .role-btn {
+    background: #fff;
+    border: 1px solid #f0ad4e;
+    color: #6b4e00;
+    border-radius: 0.5rem;
+    padding: 0.2em 0.7em;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.15s;
+
+    &:hover {
+      background: #f0ad4e;
+      color: #fff;
+    }
+  }
+
+  .current-perms {
+    color: #6b4e00;
+    font-size: 0.82em;
+    margin-left: 0.5em;
+  }
+}
+
+.no-perm-msg {
+  color: #888;
+  font-size: 0.88rem;
+  font-style: italic;
+  background: #f3f3f3;
+  padding: 0.3em 0.8em;
+  border-radius: 0.6em;
+  display: inline-block;
 }

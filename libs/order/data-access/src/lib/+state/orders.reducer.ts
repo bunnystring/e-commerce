@@ -6,17 +6,24 @@ import { Pagination } from '../models/pagination.model';
 import { OrderError } from '../models/order-error.model';
 
 /**
+ * Tipo interno usado solo en el state. La interface Pagination del modelo
+ * expone también los derivados (totalItems, totalPages), pero el state solo
+ * guarda lo no derivable para evitar desincronización.
+ */
+type PaginationState = Pick<Pagination, 'page' | 'pageSize'>;
+
+/**
  * Orders State
  * Definimos la estructura del estado para la gestión de pedidos en la aplicación.
  * Incluye la lista de pedidos, el ID del pedido seleccionado, los filtros aplicados, el estado de carga y cualquier error.
  * El estado inicial se establece con valores predeterminados para cada propiedad.
  */
+
 export interface OrdersState {
   orders: Order[];
   selectedOrder: Order | null;
   filters: OrderFilters;
-  pagination: Pagination;
-  stats: { totalOrders: number; totalRevenue: number };
+  pagination: PaginationState;
   loading: { list: boolean; detail: boolean; action: boolean };
   error: OrderError | null;
 }
@@ -29,8 +36,7 @@ export const initialState: OrdersState = {
   orders: [],
   selectedOrder: null,
   filters: {},
-  pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 },
-  stats: { totalOrders: 0, totalRevenue: 0 },
+  pagination: { page: 1, pageSize: 10 },
   loading: { list: false, detail: false, action: false },
   error: null,
 };
@@ -50,8 +56,10 @@ export const ordersReducer = createReducer(
    * Manejo de la acción loadOrders para iniciar la carga de pedidos.
    * Actualiza el estado para indicar que se está cargando la lista de pedidos y limpia cualquier error previo.
    */
-  on(OrdersActions.loadOrders, (state) => ({
+  on(OrdersActions.loadOrders, (state, { filters }) => ({
     ...state,
+    filters: filters ? { ...state.filters, ...filters } : state.filters,
+    pagination: filters ? { ...state.pagination, page: 1 } : state.pagination,
     loading: { ...state.loading, list: true },
     error: null,
   })),
@@ -64,7 +72,7 @@ export const ordersReducer = createReducer(
   on(OrdersActions.loadOrdersSuccess, (state, { orders }) => ({
     ...state,
     orders,
-    loading: { ...state.loading, list: false }
+    loading: { ...state.loading, list: false },
   })),
 
   /**
@@ -191,13 +199,22 @@ export const ordersReducer = createReducer(
    * @param id - El ID del pedido a actualizar, proporcionado en la acción updateOrderStatus.
    * @param status - El nuevo estado a aplicar al pedido, proporcionado en la acción updateOrderStatus.
    */
-  on(OrdersActions.updateOrderStatus, (state, { id, status }) => ({
+  on(OrdersActions.updateOrderStatus, (state) => ({
     ...state,
-    orders: state.orders.map(order =>
-      order.id === id ? { ...order, status } : order
-    ),
     loading: { ...state.loading, action: true },
     error: null,
+  })),
+
+  /**
+   * Aplica el optimistic update del estado. Se despacha desde el effect después
+   * de leer el prevStatus, evitando que el reducer mute el state antes de que
+   * el effect pueda capturarlo.
+   */
+  on(OrdersActions.applyOptimisticStatus, (state, { id, status }) => ({
+    ...state,
+    orders: state.orders.map((order) =>
+      order.id === id ? { ...order, status } : order,
+    ),
   })),
 
   /**
@@ -209,28 +226,43 @@ export const ordersReducer = createReducer(
    */
   on(OrdersActions.updateOrderStatusSuccess, (state, { order }) => ({
     ...state,
-    orders: state.orders.map(o => (o.id === order.id ? order : o)),
-    selectedOrder: state.selectedOrder?.id === order.id ? order : state.selectedOrder,
+    orders: state.orders.map((o) => (o.id === order.id ? order : o)),
+    selectedOrder:
+      state.selectedOrder?.id === order.id ? order : state.selectedOrder,
     loading: { ...state.loading, action: false },
   })),
 
   /**
    * Manejo de la acción updateOrderStatusFailure para indicar que la actualización del estado de un pedido falló.
-   * Revertimos el cambio optimista al estado anterior del pedido utilizando el prevStatus proporcionado en la acción, y establecemos el error recibido.
+   * Revertimos el cambio optimista al estado anterior del pedido utilizando el ID proporcionado en la acción para identificar el pedido afectado, y establecemos el error recibido.
    * También establece el estado de carga de acciones en false para indicar que la operación de actualización ha finalizado, incluso si fue con error.
    * Esto permite a los componentes manejar correctamente los casos de error al actualizar el estado de un pedido, asegurando que se mantenga la integridad del estado y que se muestre un mensaje de error adecuado al usuario.
-   * @param id - El ID del pedido cuya actualización falló, proporcionado en la acción updateOrderStatusFailure.
-   * @param prevStatus - El estado anterior del pedido antes de la actualización, proporcionado en la acción updateOrderStatusFailure, utilizado para revertir el cambio optimista.
-   * @param error - El error recibido al intentar actualizar el estado del pedido, proporcionado en la acción updateOrderStatusFailure.
+   * @param id - El ID del pedido cuya actualización falló, proporcionado en la acción updateOrderStatusFailure, utilizado para revertir el cambio optimista.
+   * @param prevStatus - El estado anterior del pedido antes de intentar la actualización, proporcionado en la acción updateOrderStatusFailure, utilizado para revertir el cambio optimista.
+   * @param error - El error recibido al intentar actualizar el estado del pedido, proporcion
    */
-  on(OrdersActions.updateOrderStatusFailure, (state, { id, prevStatus, error }) => ({
-    ...state,
-    orders: state.orders.map(order =>
-      order.id === id ? { ...order, status: prevStatus } : order
-    ),
-    loading: { ...state.loading, action: false },
-    error,
-  })),
+  on(
+    OrdersActions.updateOrderStatusFailure,
+    (state, { id, prevStatus, error }) => {
+      console.log('🔴 FAILURE REDUCER', {
+        id,
+        prevStatus,
+        currentOrderStatus: state.orders.find((o) => o.id === id)?.status,
+        willRevert: !!prevStatus,
+      });
+
+      return {
+        ...state,
+        orders: prevStatus
+          ? state.orders.map((order) =>
+              order.id === id ? { ...order, status: prevStatus } : order,
+            )
+          : state.orders,
+        loading: { ...state.loading, action: false },
+        error,
+      };
+    },
+  ),
 
   /**
    * Manejo de la acción bulkUpdateStatus para realizar una actualización masiva del estado de varios pedidos.
@@ -240,13 +272,22 @@ export const ordersReducer = createReducer(
    * @param ids - Los IDs de los pedidos a actualizar, proporcionados en la acción bulkUpdateStatus.
    * @param status - El nuevo estado a aplicar a los pedidos seleccionados, proporcionado en la acción bulkUpdateStatus.
    */
-  on(OrdersActions.bulkUpdateStatus, (state, { ids, status }) => ({
+  on(OrdersActions.bulkUpdateStatus, (state) => ({
     ...state,
-    orders: state.orders.map(order =>
-      ids.includes(order.id) ? { ...order, status } : order
-    ),
     loading: { ...state.loading, action: true },
     error: null,
+  })),
+
+  /**
+   * Aplica el optimistic update masivo. Se despacha desde el effect después de
+   * leer los prevStatuses, evitando que el reducer mute el state antes de que
+   * el effect pueda capturarlos.
+   */
+  on(OrdersActions.applyOptimisticBulkStatus, (state, { ids, status }) => ({
+    ...state,
+    orders: state.orders.map((order) =>
+      ids.includes(order.id) ? { ...order, status } : order,
+    ),
   })),
 
   /**
@@ -258,8 +299,8 @@ export const ordersReducer = createReducer(
    */
   on(OrdersActions.bulkUpdateStatusSuccess, (state, { orders }) => ({
     ...state,
-    orders: state.orders.map(order => {
-      const updated = orders.find(u => u.id === order.id);
+    orders: state.orders.map((order) => {
+      const updated = orders.find((u) => u.id === order.id);
       return updated ? updated : order;
     }),
     loading: { ...state.loading, action: false },
@@ -273,9 +314,27 @@ export const ordersReducer = createReducer(
    * @param ids - Los IDs de los pedidos cuya actualización masiva falló, proporcionados en la acción bulkUpdateStatusFailure, utilizados para revertir el cambio optimista.
    * @param error - El error recibido al intentar realizar la actualización masiva del estado de pedidos, proporcionado en la acción bulkUpdateStatusFailure.
    */
-  on(OrdersActions.bulkUpdateStatusFailure, (state, { ids, error }) => ({
-    ...state,
-    loading: { ...state.loading, action: false },
-    error,
-  }))
+  on(
+    OrdersActions.bulkUpdateStatusFailure,
+    (state, { prevStatuses, error }) => ({
+      ...state,
+      orders: state.orders.map((order) =>
+        prevStatuses[order.id]
+          ? { ...order, status: prevStatuses[order.id] }
+          : order,
+      ),
+      loading: { ...state.loading, action: false },
+      error,
+    }),
+  ),
+
+  /**
+ * Manejo de la acción clearError para limpiar el error actual del estado.
+ * Permite que los mensajes de error desaparezcan de la UI después de un tiempo,
+ * sin necesidad de que el usuario los cierre manualmente.
+ */
+on(OrdersActions.clearError, (state) => ({
+  ...state,
+  error: null,
+})),
 );

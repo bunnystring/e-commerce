@@ -1,5 +1,6 @@
+import { OrderItem } from './../models/order-item.model';
 import { Injectable } from '@angular/core';
-import { Observable, of, delay, throwError } from 'rxjs';
+import { Observable, of, delay, throwError, switchMap } from 'rxjs';
 import { Order } from '../models/order.model';
 import { OrderStatus } from '../models/order-status.enum';
 import { CreateOrderDto } from '../models/create-order.dto';
@@ -79,9 +80,15 @@ export class MockOrdersService {
    * @returns Observable<Order> - Un observable que emite el pedido actualizado.
    */
   updateOrderStatus(id: string, status: OrderStatus): Observable<Order> {
+
+    /* return of(null).pipe(
+    delay(10000),
+    switchMap(() => throwError(() => ({ message: 'Order update failed', code: 'ERROR_UPDATE' })))
+  ); */
+
     const idx = this.orders.findIndex((o) => o.id === id);
     if (idx === -1)
-      return throwError(() => ({ message: 'Order not found', code: 404 }));
+      return throwError(() => ({ message: 'Order update failed', code: 'ERROR_UPDATE' }));
     this.orders[idx] = { ...this.orders[idx], status, updatedAt: new Date() };
     return of(this.orders[idx]).pipe(delay(400));
   }
@@ -95,6 +102,12 @@ export class MockOrdersService {
    * @returns Observable<Order[]> - Un observable que emite los pedidos actualizados.
    */
   bulkUpdateStatus(ids: string[], status: OrderStatus): Observable<Order[]> {
+
+     return of(null).pipe(
+    delay(2000),
+    switchMap(() => throwError(() => ({ message: 'Order Update Bulk Failed', code: 'ERROR_UPDATE_BULK' })))
+  );
+
     const changed: Order[] = [];
     this.orders = this.orders.map((o) => {
       if (ids.includes(o.id)) {
@@ -116,22 +129,62 @@ export class MockOrdersService {
     const orders: Order[] = [];
     const statuses = Object.values(OrderStatus);
 
+    const productPool = [
+      { productId: 'prod-001', productName: 'Laptop Dell XPS 13' },
+      { productId: 'prod-002', productName: 'Mouse Logitech MX Master' },
+      { productId: 'prod-003', productName: 'Teclado Mecánico Keychron' },
+      { productId: 'prod-004', productName: 'Monitor LG 27"' },
+      { productId: 'prod-005', productName: 'Webcam Logitech C920' },
+      { productId: 'prod-006', productName: 'Audífonos Sony WH-1000XM5' },
+      { productId: 'prod-007', productName: 'Silla Ergonómica' },
+      { productId: 'prod-008', productName: 'Escritorio Regulable' },
+    ];
+
     for (let i = 1; i <= 50; i++) {
       const numItems = Math.floor(Math.random() * 5) + 1;
-      const items: any[] = [];
+      const items: OrderItem[] = [];
 
       for (let j = 0; j < numItems; j++) {
         const quantity = Math.floor(Math.random() * 3) + 1;
         const unitPrice = parseFloat((Math.random() * 200 + 10).toFixed(2));
+        const product =
+          productPool[Math.floor(Math.random() * productPool.length)];
         items.push({
-          id: `item-${j}`,
-          productId: `prod-${j}`,
-          productName: `Product ${j + 1}`,
+          id: `item-${i}-${j}`,
+          productId: product.productId,
+          productName: product.productName,
           quantity,
           unitPrice,
           subtotal: quantity * unitPrice,
         });
       }
+
+      const mobilePrefixes = [
+        '300',
+        '301',
+        '302',
+        '310',
+        '311',
+        '312',
+        '313',
+        '314',
+        '315',
+        '316',
+        '317',
+        '318',
+        '320',
+        '321',
+        '322',
+        '323',
+        '350',
+        '351',
+      ];
+      const prefix =
+        mobilePrefixes[Math.floor(Math.random() * mobilePrefixes.length)];
+      const rest = String(Math.floor(Math.random() * 10_000_000)).padStart(
+        7,
+        '0',
+      );
 
       orders.push({
         id: `ord-${i}`,
@@ -140,7 +193,7 @@ export class MockOrdersService {
           id: `cust-${i}`,
           name: `Customer ${i}`,
           email: `customer${i}@grupoASD.com`,
-          phone: `+57${String(i).padStart(4, '0')}`,
+          phone: `+57 ${prefix}${rest}`,
         },
         items,
         status: statuses[Math.floor(Math.random() * statuses.length)],

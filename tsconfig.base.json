@@ -22,8 +22,15 @@
       "@e-commerce/order/feature-creation": [
         "libs/order/feature-creation/src/index.ts"
       ],
-      "@e-commerce/order/ui-components": ["libs/order/ui-components/src/index.ts"],
-      "@e-commerce/order/ui-components/*": ["libs/order/ui-components/src/*"]
+      "@e-commerce/order/ui-components": [
+        "libs/order/ui-components/src/index.ts"
+      ],
+      "@e-commerce/order/ui-components/*": ["libs/order/ui-components/src/*"],
+      "@e-commerce/shared-permissions": [
+        "libs/shared/permissions/src/index.ts"
+      ],
+      "@e-commerce/shared-permissions/*": ["libs/shared/permissions/src/*"],
+      "@e-commerce/shared-ui-common": ["libs/shared/ui-common/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

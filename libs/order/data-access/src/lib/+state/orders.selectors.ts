@@ -1,5 +1,8 @@
 import { createFeatureSelector, createSelector } from '@ngrx/store';
 import { OrdersState } from './orders.reducer';
+import { Order } from '../models/order.model';
+import { OrderStatus } from '../models/order-status.enum';
+import { Pagination } from '../models/pagination.model';
 
 /**
  * Orders Selectors
@@ -25,7 +28,7 @@ export const selectOrdersState = createFeatureSelector<OrdersState>('orders');
  */
 export const selectAllOrders = createSelector(
   selectOrdersState,
-  (state) => state.orders
+  (state) => state.orders,
 );
 
 /**
@@ -34,7 +37,7 @@ export const selectAllOrders = createSelector(
  */
 export const selectSelectedOrder = createSelector(
   selectOrdersState,
-  (state) => state.selectedOrder
+  (state) => state.selectedOrder,
 );
 
 /**
@@ -43,7 +46,7 @@ export const selectSelectedOrder = createSelector(
  */
 export const selectOrdersError = createSelector(
   selectOrdersState,
-  (state) => state.error
+  (state) => state.error,
 );
 
 /**
@@ -52,16 +55,7 @@ export const selectOrdersError = createSelector(
  */
 export const selectActiveFilters = createSelector(
   selectOrdersState,
-  (state) => state.filters
-);
-
-/**
- * Selector para obtener la información de paginación actual desde el estado de pedidos.
- * Utiliza createSelector para seleccionar la propiedad 'pagination' del estado de pedidos.
- */
-export const selectPagination = createSelector(
-  selectOrdersState,
-  (state) => state.pagination
+  (state) => state.filters,
 );
 
 /**
@@ -70,7 +64,7 @@ export const selectPagination = createSelector(
  */
 export const selectOrdersLoading = createSelector(
   selectOrdersState,
-  (state) => state.loading
+  (state) => state.loading,
 );
 
 /**
@@ -79,7 +73,7 @@ export const selectOrdersLoading = createSelector(
  */
 export const selectIsLoadingList = createSelector(
   selectOrdersLoading,
-  (loading) => loading.list
+  (loading) => loading.list,
 );
 
 /**
@@ -90,7 +84,7 @@ export const selectIsLoadingList = createSelector(
  */
 export const selectIsLoadingDetail = createSelector(
   selectOrdersLoading,
-  (loading) => loading.detail
+  (loading) => loading.detail,
 );
 
 /**
@@ -100,7 +94,7 @@ export const selectIsLoadingDetail = createSelector(
  */
 export const selectIsLoadingAction = createSelector(
   selectOrdersLoading,
-  (loading) => loading.action
+  (loading) => loading.action,
 );
 
 /**
@@ -111,13 +105,15 @@ export const selectIsLoadingAction = createSelector(
  */
 export const selectHasActiveFilters = createSelector(
   selectActiveFilters,
-  (filters) => Boolean(
-    (filters.status && filters.status.length > 0) ||
-    filters.searchTerm ||
-    filters.customerId ||
-    (filters.dateRange && (filters.dateRange.from || filters.dateRange.to)) ||
-    typeof filters.minTotal === 'number'
-  )
+  (filters) =>
+    Boolean(
+      (filters.status && filters.status.length > 0) ||
+        filters.searchTerm ||
+        filters.customerId ||
+        (filters.dateRange &&
+          (filters.dateRange.from || filters.dateRange.to)) ||
+        typeof filters.minTotal === 'number',
+    ),
 );
 
 // --- SELECTORES DERIVADOS ---
@@ -135,32 +131,55 @@ export const selectFilteredOrders = createSelector(
   (orders, filters) => {
     let filtered = [...orders];
     if (filters.status && filters.status.length) {
-      filtered = filtered.filter(o => filters.status!.includes(o.status));
+      filtered = filtered.filter((o) => filters.status!.includes(o.status));
     }
     if (filters.searchTerm) {
       const term = filters.searchTerm.toLowerCase();
       filtered = filtered.filter(
-        o =>
+        (o) =>
           o.id.toLowerCase().includes(term) ||
           o.customer.name.toLowerCase().includes(term) ||
-          (o.customer.email && o.customer.email.toLowerCase().includes(term))
+          (o.customer.email && o.customer.email.toLowerCase().includes(term)),
       );
     }
     if (filters.customerId) {
-      filtered = filtered.filter(o => o.customer.id === filters.customerId);
+      filtered = filtered.filter((o) => o.customer.id === filters.customerId);
     }
     if (filters.dateRange) {
       const { from, to } = filters.dateRange;
-      filtered = filtered.filter(order => {
+      filtered = filtered.filter((order) => {
         const date = new Date(order.createdAt);
         return (!from || date >= from) && (!to || date <= to);
       });
     }
     if (typeof filters.minTotal === 'number') {
-      filtered = filtered.filter(o => o.total >= filters.minTotal!);
+      filtered = filtered.filter((o) => o.total >= filters.minTotal!);
     }
     return filtered;
-  }
+  },
+);
+
+/**
+ * Selector para obtener la información completa de paginación.
+ * Devuelve el objeto Pagination según el modelo definido en el ejercicio, calculando
+ * totalItems y totalPages a partir de los pedidos filtrados (no los guarda en el state para evitar desincronización).
+ */
+export const selectPagination = createSelector(
+  selectOrdersState,
+  selectFilteredOrders,
+  (state, filteredOrders): Pagination => {
+    const totalItems = filteredOrders.length;
+    const totalPages = Math.max(
+      1,
+      Math.ceil(totalItems / state.pagination.pageSize),
+    );
+    return {
+      page: state.pagination.page,
+      pageSize: state.pagination.pageSize,
+      totalItems,
+      totalPages,
+    };
+  },
 );
 
 /**
@@ -176,23 +195,28 @@ export const selectPagedFilteredOrders = createSelector(
   (filteredOrders, pagination) => {
     const start = (pagination.page - 1) * pagination.pageSize;
     return filteredOrders.slice(start, start + pagination.pageSize);
-  }
+  },
 );
 
 /**
- * Selector para obtener un objeto que agrupa los pedidos filtrados por su estado.
- * Utiliza createSelector para combinar la lista de pedidos filtrados y aplicar la lógica de agrupación en función del estado de cada pedido.
- * Retorna un objeto donde las claves son los estados de los pedidos y los valores son arrays de pedidos que corresponden a cada estado.
- * @returns Record<string, Order[]> - Un objeto que agrupa los pedidos filtrados por su estado.
+ * Selector para obtener un Map que agrupa los pedidos filtrados por su estado.
+ * Utiliza createSelector para combinar la lista de pedidos filtrados y aplicar la lógica de agrupación
+ * en función del estado de cada pedido.
+ * Retorna un Map donde las claves son los estados de los pedidos (OrderStatus) y los valores son
+ * arrays de pedidos que corresponden a cada estado.
+ * @returns Map<OrderStatus, Order[]> - Un Map que agrupa los pedidos filtrados por su estado.
  */
 export const selectOrdersByStatus = createSelector(
   selectFilteredOrders,
-  (orders) => {
-    return orders.reduce((acc, order) => {
-      (acc[order.status] = acc[order.status] || []).push(order);
-      return acc;
-    }, {} as Record<string, typeof orders>);
-  }
+  (orders): Map<OrderStatus, Order[]> => {
+    const map = new Map<OrderStatus, Order[]>();
+    for (const order of orders) {
+      const arr = map.get(order.status) ?? [];
+      arr.push(order);
+      map.set(order.status, arr);
+    }
+    return map;
+  },
 );
 
 /**
@@ -204,18 +228,26 @@ export const selectOrdersByStatus = createSelector(
  */
 export const selectTotalRevenue = createSelector(
   selectFilteredOrders,
-  (orders) => orders.reduce((sum, o) => sum + o.total, 0)
+  (orders) => orders.reduce((sum, o) => sum + o.total, 0),
 );
 
 /**
- * Selector para calcular el total de páginas disponibles en función de la cantidad de pedidos filtrados y el tamaño de página definido en la configuración de paginación.
- * Utiliza createSelector para combinar la lista de pedidos filtrados y la información de paginación, y aplicar la lógica de cálculo del total de páginas utilizando la fórmula de división del total de pedidos entre el tamaño de página, redondeando hacia arriba.
- * Retorna un número que representa el total de páginas disponibles para mostrar los pedidos filtrados según la configuración de paginación actual.
- * @returns number - El total de páginas disponibles para mostrar los pedidos filtrados según la configuración de paginación actual.
+ * Selector para obtener el total de páginas disponibles.
+ * Delega en selectPagination, que ya calcula totalPages a partir de los pedidos filtrados
+ * y el pageSize. Evita duplicar la lógica de cálculo.
  */
 export const selectTotalPages = createSelector(
-  selectFilteredOrders,
   selectPagination,
-  (filteredOrders, pagination) =>
-    Math.max(1, Math.ceil(filteredOrders.length / pagination.pageSize))
+  (pagination) => pagination.totalPages,
 );
+
+/**
+ * Selector factory para obtener un pedido específico por su ID.
+ * Retorna un selector parametrizado que busca en la lista de pedidos el que coincida con el ID dado.
+ * Útil para operaciones que necesitan leer el estado actual de un pedido antes de modificarlo
+ * (por ejemplo, optimistic updates con rollback).
+ * @param id - El ID del pedido a buscar.
+ * @returns Un selector que emite el pedido encontrado o undefined si no existe.
+ */
+export const selectOrderById = (id: string) =>
+  createSelector(selectAllOrders, (orders) => orders.find((o) => o.id === id));

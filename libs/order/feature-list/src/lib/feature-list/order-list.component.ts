@@ -1,4 +1,9 @@
-import { Component, OnInit, inject } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  inject,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -9,6 +14,20 @@ import {
 import { Observable } from 'rxjs';
 import { Router } from '@angular/router';
 import { OrderStatusPipe } from '@e-commerce/order/ui-components';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import {
+  debounceTime,
+  distinctUntilChanged,
+  filter,
+  pairwise,
+} from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DestroyRef } from '@angular/core';
+import {
+  HasPermissionDirective,
+  PermissionsService,
+} from '@e-commerce/shared-permissions';
+import { LoadingStateDirective } from '@e-commerce/shared-ui-common';
 
 /**
  * OrderListComponent
@@ -22,11 +41,20 @@ import { OrderStatusPipe } from '@e-commerce/order/ui-components';
 @Component({
   selector: 'lib-order-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, OrderStatusPipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    OrderStatusPipe,
+    HasPermissionDirective,
+    LoadingStateDirective,
+  ],
   templateUrl: './order-list.component.html',
   styleUrl: './order-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OrderListComponent implements OnInit {
+  // variables para manejar los filtros de búsqueda y estado seleccionados por el usuario.
   customerId = '';
   fromDate = '';
   toDate = '';
@@ -36,6 +64,9 @@ export class OrderListComponent implements OnInit {
   facade = inject(OrdersFacade);
   router = inject(Router);
 
+  // permissionsService: PermissionsService - El servicio para manejar los permisos del usuario.
+  private permissionsService = inject(PermissionsService);
+
   // Observables para obtener los datos de pedidos, estado de carga, estadísticas y filtros activos desde la fachada.
   orders$: Observable<Order[]> = this.facade.orders$;
   loading$ = this.facade.isLoadingList$;
@@ -44,6 +75,10 @@ export class OrderListComponent implements OnInit {
   activeFilters$ = this.facade.activeFilters$;
   pagination$ = this.facade.pagination$;
   totalPages$ = this.facade.totalPages$;
+  ordersByStatus$ = this.facade.ordersByStatus$;
+
+  // currentPermissions$: Observable<string[]> - Un observable que emite los permisos actuales del usuario.
+  currentPermissions$ = inject(PermissionsService).permissions$;
 
   // Variables para manejar los filtros de búsqueda y estado seleccionados por el usuario.
   searchTerm = '';
@@ -52,14 +87,57 @@ export class OrderListComponent implements OnInit {
   // Lista de todos los estados de pedido disponibles para mostrar en la interfaz de filtros.
   allStatuses = Object.values(OrderStatus);
 
+  // variable para almacenar los IDs de los pedidos seleccionados para acciones masivas.
   selectedOrderIds = new Set<string>();
+  searchControl = new FormControl('', { nonNullable: true });
+
+  // destroyRef: DestroyRef - Un objeto para manejar la destrucción de suscripciones y evitar fugas de memoria.
+  private destroyRef = inject(DestroyRef);
 
   /**
-   * Método ngOnInit para cargar los pedidos al inicializar el componente.
-   * Llama al método loadOrders de la fachada para iniciar la carga de pedidos desde la API.
+   * Método ngOnInit para inicializar el componente.
+   * Carga los pedidos iniciales y configura las suscripciones reactivas a cambios
+   * de búsqueda y estado de acciones masivas.
    */
   ngOnInit() {
     this.facade.loadOrders();
+    this.initSearchSubscription();
+    this.initBulkActionCompletionHandler();
+  }
+
+  /**
+   * Suscripción al control de búsqueda con debounce.
+   * Aplica el término de búsqueda al filtro de pedidos 300ms después de que
+   * el usuario deje de escribir, evitando llamadas innecesarias por cada tecla.
+   */
+  private initSearchSubscription(): void {
+    this.searchControl.valueChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((term) => {
+        this.facade.updateFilters({ searchTerm: term || undefined });
+      });
+  }
+
+  /**
+   * Suscripción al estado de carga de acciones masivas.
+   * Detecta la transición de loading=true a loading=false (acción completada)
+   * para limpiar los pedidos seleccionados automáticamente, evitando que la barra
+   * de acciones masivas desaparezca antes de que termine el spinner.
+   */
+  private initBulkActionCompletionHandler(): void {
+    this.facade.isLoadingAction$
+      .pipe(
+        pairwise(),
+        filter(([prev, curr]) => prev === true && curr === false),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => {
+        this.selectedOrderIds.clear();
+      });
   }
 
   /**
@@ -86,32 +164,13 @@ export class OrderListComponent implements OnInit {
    * Restablece los filtros de búsqueda y estado a sus valores predeterminados y actualiza la fachada.
    */
   clearFilters() {
-    this.searchTerm = '';
+    this.searchControl.setValue('', { emitEvent: false });
     this.selectedStatuses = [];
     this.customerId = '';
     this.fromDate = '';
     this.toDate = '';
     this.minTotal = undefined;
     this.facade.clearFilters();
-  }
-
-  /**
-   * Método para obtener la clase CSS correspondiente a un estado de pedido.
-   * @param status El estado de pedido para el cual se desea obtener la clase CSS.
-   * @returns La clase CSS correspondiente al estado de pedido.
-   */
-  getStatusClass(status: OrderStatus): string {
-    const classes: Record<OrderStatus, string> = {
-      [OrderStatus.DRAFT]: 'status-draft',
-      [OrderStatus.PENDING]: 'status-pending',
-      [OrderStatus.CONFIRMED]: 'status-confirmed',
-      [OrderStatus.PROCESSING]: 'status-processing',
-      [OrderStatus.SHIPPED]: 'status-shipped',
-      [OrderStatus.DELIVERED]: 'status-delivered',
-      [OrderStatus.CANCELLED]: 'status-cancelled',
-      [OrderStatus.REFUNDED]: 'status-refunded',
-    };
-    return classes[status] ?? 'status-unknown';
   }
 
   /**
@@ -122,29 +181,6 @@ export class OrderListComponent implements OnInit {
    */
   newOrder() {
     this.router.navigate(['/orders', 'create']);
-  }
-
-  /**
-   * Método para manejar los cambios en el campo de búsqueda.
-   * Actualiza el filtro de búsqueda en la fachada cada vez que el usuario cambia el término de búsqueda.
-   */
-  onSearchChange() {
-    this.facade.updateFilters({ searchTerm: this.searchTerm });
-  }
-
-  /**
-   * Método para manejar el cambio de estado de un pedido específico.
-   * Se llama cuando el usuario selecciona un nuevo estado para un pedido desde el elemento select en la interfaz.
-   * Actualiza el estado del pedido a través de la fachada, que a su vez despacha la acción correspondiente para actualizar el estado en el store y realizar la llamada a la API.
-   * @param orderId El ID del pedido cuyo estado se va a cambiar.
-   * @param event El evento de cambio del elemento select que contiene el nuevo estado.
-   * @returns void
-   */
-  onChangeStatus(orderId: string, event: Event) {
-    const select = event.target as HTMLSelectElement | null;
-    const status = select?.value as OrderStatus | undefined;
-    if (!orderId || !status) return;
-    this.facade.updateOrderStatus(orderId, status);
   }
 
   /**
@@ -186,20 +222,54 @@ export class OrderListComponent implements OnInit {
    * @param orderId El ID del pedido cuyo estado de selección se va a cambiar.
    * @param checked Indica si el pedido está seleccionado o no.
    */
-  toggleOrderSelection(orderId: string, checked: boolean) {
-  if (checked) {
-    this.selectedOrderIds.add(orderId);
-  } else {
-    this.selectedOrderIds.delete(orderId);
+  /**
+   * Metodo que selecciona o deselecciona un pedido para realizar una acción masiva
+   * @param orderId El ID del pedido cuyo estado de selección se va a cambiar.
+   * @param event El evento de cambio del checkbox.
+   */
+  toggleOrderSelection(orderId: string, event: Event) {
+    const checked = (event.target as HTMLInputElement).checked;
+    if (checked) {
+      this.selectedOrderIds.add(orderId);
+    } else {
+      this.selectedOrderIds.delete(orderId);
+    }
   }
-}
 
-/**
- * Metodo para cambiar el estado de múltiples pedidos seleccionados
- * @param status El nuevo estado que se aplicará a los pedidos seleccionados.
- */
-bulkChangeStatus(status: string) {
-  this.facade.bulkUpdateStatus(Array.from(this.selectedOrderIds), status as OrderStatus);
-  this.selectedOrderIds.clear();
-}
+  /**
+   * Metodo para cambiar el estado de múltiples pedidos seleccionados
+   * @param status El nuevo estado que se aplicará a los pedidos seleccionados.
+   */
+  bulkChangeStatus(status: string) {
+    this.facade.bulkUpdateStatus(
+      Array.from(this.selectedOrderIds),
+      status as OrderStatus,
+    );
+  }
+
+  /**
+   * Aplica un preset de permisos. Se usa en el panel de demo para cambiar de rol en vivo
+   * y demostrar que la directiva appHasPermission reacciona automáticamente.
+   */
+  setRole(role: 'viewer' | 'editor' | 'admin') {
+    const roleMap: Record<typeof role, string[]> = {
+      viewer: ['orders:read'],
+      editor: ['orders:read', 'orders:update'],
+      admin: ['orders:read', 'orders:update', 'orders:delete', 'admin'],
+    };
+    this.permissionsService.setPermissions(roleMap[role]);
+  }
+
+  /**
+   * Método para manejar el cambio de estado de un pedido específico.
+   * Se llama cuando el usuario selecciona un nuevo estado desde el select.
+   * Usa ngModelChange para garantizar sincronización bidireccional: si el estado
+   * se revierte en el store (por un rollback, por ejemplo), el select refleja el cambio.
+   * @param orderId El ID del pedido cuyo estado se va a cambiar.
+   * @param status El nuevo estado seleccionado.
+   */
+  onStatusChange(orderId: string, status: OrderStatus) {
+    if (!orderId || !status) return;
+    this.facade.updateOrderStatus(orderId, status);
+  }
 }

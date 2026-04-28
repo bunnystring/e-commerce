@@ -30,7 +30,8 @@
         "libs/shared/permissions/src/index.ts"
       ],
       "@e-commerce/shared-permissions/*": ["libs/shared/permissions/src/*"],
-      "@e-commerce/shared-ui-common": ["libs/shared/ui-common/src/index.ts"]
+      "@e-commerce/shared-ui-common": ["libs/shared/ui-common/src/index.ts"],
+      "@e-commerce/testing": ["libs/shared/testing/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

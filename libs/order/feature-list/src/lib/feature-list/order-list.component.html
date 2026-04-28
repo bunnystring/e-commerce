@@ -10,7 +10,8 @@
       <button type="button" class="role-btn" (click)="setRole('editor')">Editor</button>
       <button type="button" class="role-btn" (click)="setRole('admin')">Admin</button>
       <span class="current-perms">
-        @if (currentPermissions$ | async; as perms) {
+        @let perms = currentPermissions();
+        @if (perms) {
         [ {{ perms.size }} permisos activos ]
         }
       </span>
@@ -19,18 +20,19 @@
       <div class="stat-card">
         <span class="stat-label">Total Orders</span>
         <span class="stat-value">
-          {{ (filteredOrders$ | async)?.length ?? 0 }}
+          {{ filteredOrders().length }}
         </span>
       </div>
       <div class="stat-card">
         <span class="stat-label">Total Revenue</span>
         <span class="stat-value">
-          ${{ totalRevenue$ | async | number:'1.2-2' }}
+          ${{ totalRevenue() | number:'1.2-2' }}
         </span>
       </div>
     </div>
   </div>
-  @if (ordersByStatus$ | async; as byStatus) {
+  @let byStatus = ordersByStatus();
+  @if (byStatus) {
   <div class="status-breakdown">
     @for (status of allStatuses; track status) {
     @if (byStatus.get(status); as ordersOfStatus) {
@@ -90,20 +92,20 @@
     </div>
   </div>
 
-  @if (facade.error$ | async; as error) {
+  @if (error(); as err) {
   <div class="error-message">
-    {{ error?.message || 'Ocurrió un error al cargar los pedidos.' }}
+    {{ err.message || 'Ocurrió un error al cargar los pedidos.' }}
   </div>
   }
 
-  @if (loading$ | async) {
+  @if (isLoadingList()) {
   <div class="loading">
     <div class="spinner"></div>
     <p>Loading orders...</p>
   </div>
   }
 
-  @if (orders$ | async; as orders) {
+  @if (orders()) {
   @if (selectedOrderIds.size > 0) {
   <div class="bulk-actions-bar">
     <span class="bulk-count">
@@ -117,7 +119,7 @@
       }
     </select>
     <ng-container *appHasPermission="['orders:update', 'admin']">
-      <button class="bulk-btn" type="button" [appLoadingState]="(facade.isLoadingAction$ | async) ?? false"
+      <button class="bulk-btn" type="button" [appLoadingState]="isLoadingAction()"
         originalText="Aplicar a seleccionados" loadingText="Aplicando..." (click)="bulkChangeStatus(bulkStatus.value)">
         Aplicar a seleccionados
       </button>
@@ -126,7 +128,7 @@
   }
 
   <div class="orders-grid">
-    @for (order of orders; track order.id) {
+    @for (order of orders(); track order.id) {
     <div class="order-card" role="region" aria-label="Order Card" tabindex="0">
       <div class="order-header">
         <!-- Checkbox a la izquierda del número de orden -->
@@ -179,29 +181,29 @@
           <span class="no-perm-msg" title="Sin permiso para editar">🔒 Solo lectura</span>
         </ng-template>
 
-        @if (facade.isLoadingAction$ | async) {
+        @if (isLoadingAction()) {
         <span class="small-loader"></span>
         }
       </div>
     </div>
     }
 
-    @if (orders.length === 0) {
+    @if (orders().length === 0) {
     <div class="empty-state">
       <p>😕 No orders found</p>
     </div>
     }
   </div>
   }
-  @if (pagination$ | async; as pag) {
+  @let pag = pagination();
+  @let totalP = totalPages();
+  @if (pag) {
   <div class="pagination">
     <span>
-      Página {{ pag.page }} de {{ totalPages$ | async }} —
-      Total: {{ (filteredOrders$ | async)?.length ?? 0 }}
+      Página {{ pag.page }} de {{ totalP }} —
+      Total: {{ filteredOrders().length }}
     </span>
     <button (click)="facade.changePage(pag.page - 1)" [disabled]="pag.page === 1">◀ Prev</button>
-    <button (click)="facade.changePage(pag.page + 1)" [disabled]="pag.page === (totalPages$ | async)">Next ▶</button>
+    <button (click)="facade.changePage(pag.page + 1)" [disabled]="pag.page === totalP">Next ▶</button>
   </div>
   }
-  <ng-template #noPagination></ng-template>
-</div>

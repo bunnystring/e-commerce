@@ -114,7 +114,7 @@ export class OrdersEffects {
           return of(
             OrdersActions.updateOrderStatusFailure({
               id,
-              prevStatus: undefined as any,
+              prevStatus: undefined,
               error: { code: 'NOT_FOUND', message: 'Order not found in store' },
             }),
           );

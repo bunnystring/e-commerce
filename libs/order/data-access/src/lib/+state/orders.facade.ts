@@ -7,13 +7,17 @@ import { CreateOrderDto } from '../models/create-order.dto';
 import { Order } from '../models/order.model';
 import { OrderStatus } from '../models/order-status.enum';
 
+
 /**
  * OrdersFacade
  * La fachada para la gestión de pedidos en la aplicación.
  * Proporciona una interfaz simplificada para interactuar con el estado de los pedidos,
  * permitiendo cargar pedidos, crear nuevos pedidos, actualizar filtros y seleccionar pedidos.
- * Utiliza NgRx Store para manejar el estado de manera reactiva y eficiente.
- * @version 1.0.0
+ *
+ * Patrón híbrido: usa NgRx Store como fuente de verdad (acciones, effects, reducers, selectores)
+ * y expone los selectores como Signals para consumo directo en componentes con OnPush.
+ *
+ * @version 2.0.0
  * @author Arlez Camilo Ceron Herrera
  */
 @Injectable({ providedIn: 'root' })
@@ -21,21 +25,23 @@ export class OrdersFacade {
   // store: Store - El store de NgRx para interactuar con el estado de los pedidos.
   private store = inject(Store);
 
-  // observables para seleccionar diferentes partes del estado de los pedidos utilizando los selectores definidos en OrdersSelectors.
-  orders$ = this.store.select(OrdersSelectors.selectPagedFilteredOrders);
-  filteredOrders$ = this.store.select(OrdersSelectors.selectFilteredOrders);
-  ordersByStatus$ = this.store.select(OrdersSelectors.selectOrdersByStatus);
-  totalRevenue$ = this.store.select(OrdersSelectors.selectTotalRevenue);
-  loading$ = this.store.select(OrdersSelectors.selectOrdersLoading);
-  error$ = this.store.select(OrdersSelectors.selectOrdersError);
-  activeFilters$ = this.store.select(OrdersSelectors.selectActiveFilters);
-  pagination$ = this.store.select(OrdersSelectors.selectPagination);
-  selectedOrder$ = this.store.select(OrdersSelectors.selectSelectedOrder);
-  hasActiveFilters$ = this.store.select(OrdersSelectors.selectHasActiveFilters);
-  isLoadingList$ = this.store.select(OrdersSelectors.selectIsLoadingList);
-  isLoadingDetail$ = this.store.select(OrdersSelectors.selectIsLoadingDetail);
+  // signals para seleccionar diferentes partes del estado de los pedidos utilizando los selectores definidos en OrdersSelectors.
+  orders = this.store.selectSignal(OrdersSelectors.selectPagedFilteredOrders);
+  filteredOrders = this.store.selectSignal(OrdersSelectors.selectFilteredOrders);
+  ordersByStatus = this.store.selectSignal(OrdersSelectors.selectOrdersByStatus);
+  totalRevenue = this.store.selectSignal(OrdersSelectors.selectTotalRevenue);
+  error = this.store.selectSignal(OrdersSelectors.selectOrdersError);
+  activeFilters = this.store.selectSignal(OrdersSelectors.selectActiveFilters);
+  pagination = this.store.selectSignal(OrdersSelectors.selectPagination);
+  selectedOrder = this.store.selectSignal(OrdersSelectors.selectSelectedOrder);
+  hasActiveFilters = this.store.selectSignal(OrdersSelectors.selectHasActiveFilters);
+  isLoadingList = this.store.selectSignal(OrdersSelectors.selectIsLoadingList);
+  isLoadingDetail = this.store.selectSignal(OrdersSelectors.selectIsLoadingDetail);
+  isLoadingAction = this.store.selectSignal(OrdersSelectors.selectIsLoadingAction);
+  totalPages = this.store.selectSignal(OrdersSelectors.selectTotalPages);
+
   isLoadingAction$ = this.store.select(OrdersSelectors.selectIsLoadingAction);
-  totalPages$ = this.store.select(OrdersSelectors.selectTotalPages);
+  error$ = this.store.select(OrdersSelectors.selectOrdersError);
 
   /**
    * Método para cargar los pedidos desde la API.

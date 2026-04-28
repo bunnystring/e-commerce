@@ -34,7 +34,7 @@ import { PermissionsService } from './permissions.service';
   standalone: true,
 })
 export class HasPermissionDirective {
-  
+
   // TemplateRef y ViewContainerRef para manipular la vista del host de manera estructural.
   private readonly templateRef = inject(TemplateRef<unknown>);
   private readonly viewContainer = inject(ViewContainerRef);
@@ -70,8 +70,6 @@ export class HasPermissionDirective {
    */
   @Input() set appHasPermissionElse(ref: TemplateRef<unknown> | null) {
     this.elseTemplateRef = ref;
-    // Forzamos una re-evaluación emitiendo el valor actual del required$.
-    // Esto asegura que si el else cambia en vivo, la vista se re-renderiza correctamente.
     this.required$.next(this.required$.value);
   }
 

@@ -239,18 +239,11 @@ export const ordersReducer = createReducer(
    * Esto permite a los componentes manejar correctamente los casos de error al actualizar el estado de un pedido, asegurando que se mantenga la integridad del estado y que se muestre un mensaje de error adecuado al usuario.
    * @param id - El ID del pedido cuya actualización falló, proporcionado en la acción updateOrderStatusFailure, utilizado para revertir el cambio optimista.
    * @param prevStatus - El estado anterior del pedido antes de intentar la actualización, proporcionado en la acción updateOrderStatusFailure, utilizado para revertir el cambio optimista.
-   * @param error - El error recibido al intentar actualizar el estado del pedido, proporcion
+   * @param error - El error recibido al intentar actualizar el estado del pedido, proporcionado en la acción updateOrderStatusFailure.
    */
   on(
     OrdersActions.updateOrderStatusFailure,
     (state, { id, prevStatus, error }) => {
-      console.log('🔴 FAILURE REDUCER', {
-        id,
-        prevStatus,
-        currentOrderStatus: state.orders.find((o) => o.id === id)?.status,
-        willRevert: !!prevStatus,
-      });
-
       return {
         ...state,
         orders: prevStatus

@@ -1,9 +1,9 @@
 // NgRx gestor de estado para pedidos
 export * from './lib/+state/orders.facade';
-export * from './lib/+state/orders.actions';
+export * as OrdersActions from './lib/+state/orders.actions';
+export * as OrdersSelectors from './lib/+state/orders.selectors';
 export * from './lib/+state/orders.reducer';
 export * from './lib/+state/orders.effects';
-export * from './lib/+state/orders.selectors';
 
 // Servicios
 export * from './lib/services/mock-orders.service';

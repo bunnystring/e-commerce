@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, map, distinctUntilChanged } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 
 /**
  * PermissionsService
@@ -55,21 +55,5 @@ export class PermissionsService {
     if (list.length === 0) return true; // sin requerimientos → acceso libre
     const current = this.permissionsSubject.value;
     return list.some((perm) => current.has(perm));
-  }
-
-    /**
-   * Versión observable de hasAny, útil para pipes y templates.
-   * Emite true/false cada vez que cambia el conjunto de permisos activos.
-   * @param required - Permiso individual o array de permisos (evaluados con OR).
-   */
-  hasAny$(required: string | string[]): Observable<boolean> {
-    const list = Array.isArray(required) ? required : [required];
-    return this.permissions$.pipe(
-      map((current) => {
-        if (list.length === 0) return true;
-        return list.some((perm) => current.has(perm));
-      }),
-      distinctUntilChanged(),
-    );
   }
 }

@@ -3,26 +3,23 @@ import {
   OnInit,
   inject,
   ChangeDetectionStrategy,
+  DestroyRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import {
   OrdersFacade,
   OrderStatus,
-  Order,
 } from '@e-commerce/order/data-access';
-import { Observable } from 'rxjs';
-import { Router } from '@angular/router';
 import { OrderStatusPipe } from '@e-commerce/order/ui-components';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import {
   debounceTime,
   distinctUntilChanged,
   filter,
   pairwise,
 } from 'rxjs/operators';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DestroyRef } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   HasPermissionDirective,
   PermissionsService,
@@ -63,36 +60,31 @@ export class OrderListComponent implements OnInit {
   // facade: OrdersFacade - La fachada para interactuar con el estado de los pedidos.
   facade = inject(OrdersFacade);
   router = inject(Router);
-
-  // permissionsService: PermissionsService - El servicio para manejar los permisos del usuario.
   private permissionsService = inject(PermissionsService);
+  private destroyRef = inject(DestroyRef);
 
-  // Observables para obtener los datos de pedidos, estado de carga, estadísticas y filtros activos desde la fachada.
-  orders$: Observable<Order[]> = this.facade.orders$;
-  loading$ = this.facade.isLoadingList$;
-  filteredOrders$ = this.facade.filteredOrders$;
-  totalRevenue$ = this.facade.totalRevenue$;
-  activeFilters$ = this.facade.activeFilters$;
-  pagination$ = this.facade.pagination$;
-  totalPages$ = this.facade.totalPages$;
-  ordersByStatus$ = this.facade.ordersByStatus$;
+  // signals para obtener los datos de pedidos, estado de carga, estadísticas y filtros activos desde la fachada.
+  orders = this.facade.orders;
+  filteredOrders = this.facade.filteredOrders;
+  ordersByStatus = this.facade.ordersByStatus;
+  totalRevenue = this.facade.totalRevenue;
+  activeFilters = this.facade.activeFilters;
+  pagination = this.facade.pagination;
+  totalPages = this.facade.totalPages;
+  isLoadingAction = this.facade.isLoadingAction;
+  isLoadingList = this.facade.isLoadingList;
+  error = this.facade.error;
 
-  // currentPermissions$: Observable<string[]> - Un observable que emite los permisos actuales del usuario.
-  currentPermissions$ = inject(PermissionsService).permissions$;
+  // PermissionsService no es NgRx → toSignal aquí sí aplica
+  currentPermissions = toSignal(this.permissionsService.permissions$, {
+    initialValue: new Set<string>(),
+  });
 
-  // Variables para manejar los filtros de búsqueda y estado seleccionados por el usuario.
-  searchTerm = '';
   selectedStatuses: OrderStatus[] = [];
-
-  // Lista de todos los estados de pedido disponibles para mostrar en la interfaz de filtros.
   allStatuses = Object.values(OrderStatus);
-
-  // variable para almacenar los IDs de los pedidos seleccionados para acciones masivas.
   selectedOrderIds = new Set<string>();
   searchControl = new FormControl('', { nonNullable: true });
 
-  // destroyRef: DestroyRef - Un objeto para manejar la destrucción de suscripciones y evitar fugas de memoria.
-  private destroyRef = inject(DestroyRef);
 
   /**
    * Método ngOnInit para inicializar el componente.
@@ -217,11 +209,6 @@ export class OrderListComponent implements OnInit {
     this.facade.updateFilters({ minTotal: val });
   }
 
-  /**
-   * Metodo que selecciona o deselecciona un pedido para realizar una acción masiva
-   * @param orderId El ID del pedido cuyo estado de selección se va a cambiar.
-   * @param checked Indica si el pedido está seleccionado o no.
-   */
   /**
    * Metodo que selecciona o deselecciona un pedido para realizar una acción masiva
    * @param orderId El ID del pedido cuyo estado de selección se va a cambiar.

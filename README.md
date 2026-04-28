@@ -1,101 +1,165 @@
-# ECommerce
+# E-commerce Orders — Prueba Técnica
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Aplicación de gestión de pedidos construida con **Angular 18+**, **NgRx** y **Signals**, organizada como **Nx monorepo** con librerías por feature. La idea fue demostrar un patrón híbrido moderno: NgRx como fuente de verdad para el estado, y Signals como capa de consumo en componentes con OnPush.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+---
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/tutorials/angular-monorepo-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+## Cómo correr el proyecto
 
-## Run tasks
+### Prerrequisitos
+- Node.js 18+
+- npm o pnpm
+- Nx CLI instalado globalmente (opcional): `npm i -g nx`
 
-To run the dev server for your app, use:
-
-```sh
-npx nx serve storefront
+### Instalación
+```bash
+npm install
 ```
 
-To create a production bundle:
-
-```sh
-npx nx build storefront
+### Desarrollo
+```bash
+npx nx serve <storefront>
 ```
 
-To see all available targets to run for a project, run:
+La app estará disponible en `http://localhost:4200`.
 
-```sh
-npx nx show project storefront
+### Build de producción
+```bash
+npx nx build <storefront> --configuration=production
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+### Tests
+```bash
+# Todos los tests
+npx nx run-many --target=test --all
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Add new projects
-
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
-
-Use the plugin's generator to create new projects.
-
-To generate a new application, use:
-
-```sh
-npx nx g @nx/angular:app demo
+# Tests de una librería específica
+npx nx test order-data-access
 ```
 
-To generate a new library, use:
-
-```sh
-npx nx g @nx/angular:lib mylib
+### Linter
+```bash
+npx nx run-many --target=lint --all
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+---
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Estructura de carpetas
 
-## Set up CI!
+apps/
+└── <app-shell>/                    # Shell principal de la aplicación
+libs/
+├── order/
+│   ├── data-access/                # Estado NgRx + Facade + servicios
+│   │   └── src/lib/
+│   │       ├── +state/
+│   │       │   ├── orders.actions.ts
+│   │       │   ├── orders.reducer.ts
+│   │       │   ├── orders.effects.ts
+│   │       │   ├── orders.selectors.ts
+│   │       │   └── orders.facade.ts
+│   │       ├── models/             # Order, OrderFilters, OrderError, etc.
+│   │       └── services/           # MockOrdersService
+│   │
+│   ├── feature-list/               # OrderListComponent (lista + filtros)
+│   ├── feature-creation/           # OrderCreationComponent (formulario)
+│   └── ui-components/              # OrderStatusPipe y componentes presentacionales
+│
+├── shared-permissions/             # PermissionsService + HasPermissionDirective
+└── shared-ui-common/               # LoadingStateDirective y utilidades de UI
 
-### Step 1
 
-To connect to Nx Cloud, run the following command:
+**Convenciones:**
+- `data-access` → estado, servicios y modelos. No tiene UI.
+- `feature-*` → componentes "smart" que orquestan vistas (consumen el facade).
+- `ui-components` / `shared-ui-*` → componentes "dumb", pipes y directivas reutilizables sin lógica de negocio.
 
-```sh
-npx nx connect
+---
+
+## Diagrama de flujo de datos
+
+Ejemplo: usuario navega a `/orders` y la lista se renderiza.
+
+┌─────────────────┐
+│   Usuario navega│
+│    a /orders    │
+└────────┬────────┘
+│
+▼
+┌──────────────────────────┐
+│ Angular lazy-loads       │
+│ feature-list             │
+└────────┬─────────────────┘
+│
+▼
+┌──────────────────────────┐
+│ OrderListComponent       │
+│ (Standalone + OnPush)    │
+└────────┬─────────────────┘
+│ ngOnInit()
+▼
+┌──────────────────────────┐
+│ OrdersFacade             │
+│ .loadOrders()            │
+└────────┬─────────────────┘
+│ store.dispatch
+▼
+┌──────────────────────────┐
+│ OrdersActions.loadOrders │
+└────────┬─────────────────┘
+│
+▼
+┌──────────────────────────────┐
+│ OrdersEffects.loadOrders$    │
+│  - intercepta la acción      │
+│  - llama MockOrdersService   │
+│  - emite Success/Failure     │
+└────────┬─────────────────────┘
+│
+▼
+┌──────────────────────────┐
+│ Reducer actualiza        │
+│ OrdersState (inmutable)  │
+└────────┬─────────────────┘
+│
+▼
+┌──────────────────────────┐
+│ Selectores memoizados    │
+│ recalculan derivados     │
+│ (filteredOrders, etc.)   │
+└────────┬─────────────────┘
+│
+▼
+┌──────────────────────────┐
+│ Facade expone via        │
+│ store.selectSignal(...)  │
+└────────┬─────────────────┘
+│
+▼
+┌──────────────────────────┐
+│ Componente lee la signal │
+│ → UI se re-renderiza     │
+│   gracias a OnPush       │
+└──────────────────────────┘
+
+---
+
+## Decisiones arquitectónicas
+
+### 1. Patrón híbrido NgRx + Signals
+
+NgRx sigue siendo la fuente de verdad: acciones, effects, reducers y selectores no cambian. Lo que cambia es **cómo se consumen los selectores**: en lugar de exponerlos como `Observable` y convertir en cada componente con `toSignal`, el `OrdersFacade` los expone directamente como signals usando `store.selectSignal(...)`.
+
+```ts
+// En el facade
+orders = this.store.selectSignal(OrdersSelectors.selectPagedFilteredOrders);
+
+// En el componente
+orders = this.facade.orders;  
 ```
 
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+**Ventajas:**
+- Un solo punto de conversión observable → signal.
+- Los componentes son más limpios
+- Mantenemos toda la robustez de NgRx (devtools).
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
-```
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/getting-started/tutorials/angular-monorepo-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)

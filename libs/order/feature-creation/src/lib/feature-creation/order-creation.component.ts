@@ -1,4 +1,11 @@
-import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  Component,
+  inject,
+  OnInit,
+  ChangeDetectionStrategy,
+  DestroyRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormBuilder,
@@ -8,15 +15,8 @@ import {
   ReactiveFormsModule,
 } from '@angular/forms';
 import { Router } from '@angular/router';
-import { OrdersFacade } from '@e-commerce/order/data-access';
-import {
-  filter,
-  pairwise,
-  take,
-  withLatestFrom,
-  takeUntil,
-} from 'rxjs/operators';
-import { Subject } from 'rxjs';
+import { OrdersFacade, OrdersActions } from '@e-commerce/order/data-access';
+import { Actions, ofType } from '@ngrx/effects';
 
 @Component({
   selector: 'lib-order-creation',
@@ -24,13 +24,14 @@ import { Subject } from 'rxjs';
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './order-creation.component.html',
   styleUrl: './order-creation.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OrderCreationComponent implements OnInit {
   private fb = inject(FormBuilder);
   public facade = inject(OrdersFacade);
   private router = inject(Router);
-  private destroy$ = new Subject<void>();
+  private actions$ = inject(Actions);
+  private destroyRef = inject(DestroyRef);
 
   orderForm: FormGroup;
 
@@ -45,41 +46,21 @@ export class OrderCreationComponent implements OnInit {
   }
 
   /**
-   * Metodo para navegar a la lista de pedidos después de crear un pedido exitosamente. Se suscribe a los cambios en el estado de carga y error del facade, y navega a la ruta '/orders' cuando se detecta que la acción de creación ha terminado sin errores.
-   * Utiliza operadores de RxJS como pairwise, filter, withLatestFrom y takeUntil para gestionar la suscripción y evitar fugas de memoria.
+   * Suscripción a la acción createOrderSuccess para navegar a la lista de pedidos
+   * cuando la creación se completa exitosamente. Usa takeUntilDestroyed para
+   * limpieza automática cuando el componente se destruye.
    */
   ngOnInit() {
-    this.facade.isLoadingAction$
+    this.actions$
       .pipe(
-        pairwise(),
-        filter(([prev, curr]) => prev && !curr),
-        withLatestFrom(this.facade.error$),
-        filter(([, error]) => !error),
-        take(1),
-        takeUntil(this.destroy$),
+        ofType(OrdersActions.createOrderSuccess),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => this.router.navigate(['/orders']));
   }
 
   /**
-   * Metodo para limpiar la suscripción al observable isLoadingAction$ del facade cuando el componente se destruye. Esto es importante para evitar fugas de memoria y asegurar que no se sigan recibiendo actualizaciones después de que el componente haya sido destruido.
-   * Utiliza el Subject destroy$ para emitir un valor y completar la suscripción, lo que garantiza que cualquier suscripción que utilice takeUntil(this.destroy$) se limpiará correctamente.
-   */
-  ngOnDestroy() {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  /**
-   * Getter para acceder al FormArray de items en el formulario. Esto facilita la manipulación de los items en el formulario, como agregar o eliminar productos, y calcular totales. El FormArray permite manejar una lista dinámica de controles de formulario, lo que es ideal para la funcionalidad de agregar múltiples productos a un pedido.
-   * @returns FormArray - El FormArray que contiene los controles de los items del pedido.
-   */
-  get items(): FormArray {
-    return this.orderForm.get('items') as FormArray;
-  }
-
-  /**
-   * Metodo para crear un nuevo FormGroup que representa un item del pedido. Cada item incluye campos para el ID del producto, nombre del producto, cantidad y precio unitario, con validaciones apropiadas para cada campo. Este método se utiliza para inicializar el formulario con un item por defecto y para agregar nuevos items al pedido.
+   * Metodo para crear un nuevo item en el formulario de pedido. Este método devuelve un FormGroup que representa un item del pedido, con campos para el ID del producto, nombre del producto, cantidad y precio unitario. Cada campo tiene validaciones para asegurar que se ingresen datos válidos antes de permitir la creación del pedido.
    * @returns FormGroup - El FormGroup que representa un item del pedido.
    */
   createItem(): FormGroup {
@@ -89,6 +70,14 @@ export class OrderCreationComponent implements OnInit {
       quantity: [1, [Validators.required, Validators.min(1)]],
       unitPrice: [0, [Validators.required, Validators.min(0)]],
     });
+  }
+
+  /**
+   * Getter para acceder al FormArray de items en el formulario. Esto facilita la manipulación de los items en el formulario, como agregar o eliminar productos, y calcular totales. El FormArray permite manejar una lista dinámica de controles de formulario, lo que es ideal para la funcionalidad de agregar múltiples productos a un pedido.
+   * @returns FormArray - El FormArray que contiene los controles de los items del pedido.
+   */
+  get items(): FormArray {
+    return this.orderForm.get('items') as FormArray;
   }
 
   /**
@@ -146,9 +135,8 @@ export class OrderCreationComponent implements OnInit {
   }
 
   /**
-   * Metodo para manejar la acción de cancelación del formulario. Este método navega a la ruta '/orders', que se asume que es la lista de pedidos, permitiendo a los usuarios salir del proceso de creación de un pedido sin guardar ningún cambio. Esto proporciona una forma fácil para que los usuarios abandonen el formulario si deciden no crear un nuevo pedido o si accidentalmente accedieron a la página de creación.
-   * Al navegar a la lista de pedidos, el componente de creación se destruirá, lo que también limpiará cualquier suscripción activa gracias al método ngOnDestroy(), asegurando que no haya fugas de memoria.
-   * Este método no realiza ninguna validación ni guarda ningún dato, simplemente redirige al usuario a la lista de pedidos.
+   * Método para manejar la acción de cancelación del formulario.
+   * Este método utiliza el enrutador de Angular para navegar de regreso a la lista de pedidos sin realizar ninguna acción adicional.
    */
   onCancel() {
     this.router.navigate(['/orders']);

@@ -123,18 +123,19 @@
       <button type="button" class="cancel-btn" (click)="onCancel()">
         Cancel
       </button>
-      <button type="submit" class="submit-btn" [disabled]="orderForm.invalid || (facade.isLoadingAction$ | async)">
+      <button type="submit" class="submit-btn" [disabled]="orderForm.invalid || facade.isLoadingAction()">
         Create Order
       </button>
     </div>
 
-    @if (facade.isLoadingAction$ | async) {
+    @if (facade.isLoadingAction()) {
     <div>Creando pedido...</div>
     }
-    @if (facade.error$ | async; as error) {
+    @if (facade.error(); as error) {
     <div class="error">
       Error: {{ error.message }}
     </div>
     }
   </form>
 </div>
+
